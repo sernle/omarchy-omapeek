@@ -145,26 +145,30 @@ Item {
         shown: root.opened
         WlrLayershell.namespace: "omarchy-omapeek"
 
-        // Dimmed backdrop
-        Rectangle {
+        Item {
             anchors.fill: parent
-            color: root.bgScrim
+            focus: root.opened
 
-            MouseArea {
+            Keys.onPressed: (event) => {
+                if (event.key === Qt.Key_Escape || event.key === Qt.Key_Space) {
+                    root.close()
+                    event.accepted = true
+                } else if (event.key === Qt.Key_S) {
+                    root.showSafetyDetails = !root.showSafetyDetails
+                    event.accepted = true
+                }
+            }
+
+            // Dimmed backdrop
+            Rectangle {
                 anchors.fill: parent
-                onClicked: root.close()
-            }
-        }
+                color: root.bgScrim
 
-        Keys.onPressed: (event) => {
-            if (event.key === Qt.Key_Escape || event.key === Qt.Key_Space) {
-                root.close()
-                event.accepted = true
-            } else if (event.key === Qt.Key_S) {
-                root.showSafetyDetails = !root.showSafetyDetails
-                event.accepted = true
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked: root.close()
+                }
             }
-        }
 
     // Centered Quick Look Modal
     Rectangle {
@@ -490,6 +494,7 @@ Item {
                     }
                 }
             }
+        }
         }
         }
     }
