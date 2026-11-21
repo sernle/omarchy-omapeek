@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
@@ -315,21 +314,23 @@ Item {
                     asynchronous: true
                 }
 
-                // Code / Markdown preview
-                ScrollView {
+                // Code / Markdown preview (pure QtQuick Flickable + TextEdit)
+                Flickable {
                     visible: root.inspectData && (root.inspectData.kind === "code" || root.inspectData.kind === "markdown")
                     anchors.fill: parent
                     anchors.margins: 16
                     clip: true
+                    contentWidth: codeText.paintedWidth
+                    contentHeight: codeText.paintedHeight
 
-                    TextArea {
+                    TextEdit {
+                        id: codeText
                         readOnly: true
+                        selectByMouse: true
                         text: visible ? root.inspectData.preview.content : ""
                         color: root.textPrimary
                         font.family: "JetBrains Mono, monospace"
                         font.pixelSize: 13
-                        background: null
-                        wrapMode: TextArea.NoWrap
                     }
                 }
 
@@ -466,29 +467,54 @@ Item {
                         Layout.fillWidth: true
                     }
 
-                    Button {
+                    Rectangle {
                         visible: root.inspectData && root.inspectData.safety.verdict !== "safe"
-                        text: "🛡 Sandbox Open"
-                        onClicked: quarantineOpenProc.running = true
+                        height: 28
+                        implicitWidth: sbText.implicitWidth + 20
+                        radius: 6
+                        color: root.bgSurface
+                        border.color: root.borderSubtle
+                        Text { id: sbText; anchors.centerIn: parent; text: "🛡 Sandbox Open"; color: root.textPrimary; font.pixelSize: 12 }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: quarantineOpenProc.running = true }
                     }
 
-                    Button {
+                    Rectangle {
                         visible: root.inspectData && root.inspectData.safety.verdict !== "safe"
-                        text: "🔒 Quarantine"
-                        onClicked: quarantineVaultProc.running = true
+                        height: 28
+                        implicitWidth: qText.implicitWidth + 20
+                        radius: 6
+                        color: root.bgSurface
+                        border.color: root.borderSubtle
+                        Text { id: qText; anchors.centerIn: parent; text: "🔒 Quarantine"; color: root.textPrimary; font.pixelSize: 12 }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: quarantineVaultProc.running = true }
                     }
 
-                    Button {
+                    Rectangle {
                         readonly property bool isDanger: root.inspectData && root.inspectData.safety.verdict === "danger"
-                        text: isDanger
-                              ? (parent.parent.confirmUnsafeOpen ? "Click Again to Confirm Open" : "⚠ Open Anyway (Unsafe)")
-                              : "Open Default"
-                        onClicked: {
-                            if (isDanger && !parent.parent.confirmUnsafeOpen) {
-                                parent.parent.confirmUnsafeOpen = true
-                            } else {
-                                parent.parent.confirmUnsafeOpen = false
-                                openDefaultProc.running = true
+                        height: 28
+                        implicitWidth: openText.implicitWidth + 20
+                        radius: 6
+                        color: isDanger ? "#3a1d28" : root.bgSurface
+                        border.color: isDanger ? root.dangerColor : root.borderSubtle
+                        Text {
+                            id: openText
+                            anchors.centerIn: parent
+                            text: parent.isDanger
+                                  ? (parent.parent.parent.confirmUnsafeOpen ? "Click Again to Confirm" : "⚠ Open Anyway (Unsafe)")
+                                  : "Open Default"
+                            color: parent.isDanger ? root.dangerColor : root.textPrimary
+                            font.pixelSize: 12
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                if (parent.isDanger && !parent.parent.parent.confirmUnsafeOpen) {
+                                    parent.parent.parent.confirmUnsafeOpen = true
+                                } else {
+                                    parent.parent.parent.confirmUnsafeOpen = false
+                                    openDefaultProc.running = true
+                                }
                             }
                         }
                     }
