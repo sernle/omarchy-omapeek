@@ -6,12 +6,10 @@
   "author": "sonlc",
   "description": "macOS-style instant Quick Look overlay with offline malicious-file safety checks for Images, Markdown/Code, Archives/ZIPs, and PDFs.",
   "kinds": [
-    "overlay",
-    "bar-widget"
+    "overlay"
   ],
   "keepLoaded": true,
   "entryPoints": {
-    "overlay": "Overlay.qml",
-    "barWidget": "BarWidget.qml"
+    "overlay": "Overlay.qml"
   }
 }
