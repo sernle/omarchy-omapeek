@@ -488,7 +488,14 @@ Item {
                         color: root.bgSurface
                         border.color: root.borderSubtle
                         Text { id: sbText; anchors.centerIn: parent; text: "🛡 Sandbox Open"; color: root.textPrimary; font.pixelSize: 12 }
-                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: quarantineOpenProc.running = true }
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                quarantineOpenProc.command = [root.pluginDir + "/bin/omapeek-quarantine", "open", root.targetPath]
+                                quarantineOpenProc.running = true
+                            }
+                        }
                     }
 
                     Rectangle {
@@ -505,7 +512,14 @@ Item {
                             color: root.quarantinedDone ? root.safeColor : root.textPrimary
                             font.pixelSize: 12
                         }
-                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: quarantineVaultProc.running = true }
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                quarantineVaultProc.command = [root.pluginDir + "/bin/omapeek-quarantine", "vault", root.targetPath]
+                                quarantineVaultProc.running = true
+                            }
+                        }
                     }
 
                     Rectangle {
