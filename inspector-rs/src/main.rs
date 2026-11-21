@@ -889,7 +889,7 @@ fn render_pdf_thumbnail(path: &Path, sha_prefix: &str) -> Option<String> {
         return Some(out_png.to_string_lossy().to_string());
     }
 
-    // 1. Linux / Arch (poppler): pdftoppm -png -f 1 -l 1 -singlefile -scale-to 900
+    // Linux / Arch (poppler) or Homebrew poppler on macOS: pdftoppm -png -f 1 -l 1 -singlefile -scale-to 900
     if let Ok(status) = Command::new("pdftoppm")
         .args(["-png", "-f", "1", "-l", "1", "-singlefile", "-scale-to", "900"])
         .arg(path)
@@ -900,28 +900,6 @@ fn render_pdf_thumbnail(path: &Path, sha_prefix: &str) -> Option<String> {
     {
         if status.success() && out_png.exists() {
             return Some(out_png.to_string_lossy().to_string());
-        }
-    }
-
-    // 2. macOS fallback: qlmanage -t -s 900 -o <thumb_dir> <path>
-    if let Ok(status) = Command::new("qlmanage")
-        .args(["-t", "-s", "900", "-o"])
-        .arg(&thumb_dir)
-        .arg(path)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-    {
-        if status.success() {
-            if let Some(fname) = path.file_name().and_then(|s| s.to_str()) {
-                let ql_out = thumb_dir.join(format!("{}.png", fname));
-                if ql_out.exists() {
-                    let _ = fs::rename(&ql_out, &out_png);
-                    if out_png.exists() {
-                        return Some(out_png.to_string_lossy().to_string());
-                    }
-                }
-            }
         }
     }
 

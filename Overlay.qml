@@ -94,6 +94,19 @@ Item {
         command: ["xdg-open", root.targetPath]
     }
 
+    Process {
+        id: quarantineOpenProc
+        command: [pluginDir + "/bin/omapeek-quarantine", "open", root.targetPath]
+    }
+
+    Process {
+        id: quarantineVaultProc
+        command: [pluginDir + "/bin/omapeek-quarantine", "vault", root.targetPath]
+        onExited: (code) => {
+            if (code === 0) root.closeRequested()
+        }
+    }
+
     // Dimmed backdrop
     Rectangle {
         anchors.fill: parent
@@ -386,22 +399,46 @@ Item {
                 height: 44
                 color: root.bgElevated
 
+                property bool confirmUnsafeOpen: false
+
                 RowLayout {
                     anchors.fill: parent
                     anchors.leftMargin: 18
                     anchors.rightMargin: 18
-                    spacing: 14
+                    spacing: 12
 
                     Text {
-                        text: "Space / Esc: Close   ·   S: Toggle Safety Report"
+                        text: "Space/Esc: Close  ·  S: Safety  ·  O: Open"
                         color: root.textMuted
                         font.pixelSize: 11
                         Layout.fillWidth: true
                     }
 
                     Button {
-                        text: "Open Default"
-                        onClicked: openDefaultProc.running = true
+                        visible: root.inspectData && root.inspectData.safety.verdict !== "safe"
+                        text: "🛡 Sandbox Open"
+                        onClicked: quarantineOpenProc.running = true
+                    }
+
+                    Button {
+                        visible: root.inspectData && root.inspectData.safety.verdict !== "safe"
+                        text: "🔒 Quarantine"
+                        onClicked: quarantineVaultProc.running = true
+                    }
+
+                    Button {
+                        readonly property bool isDanger: root.inspectData && root.inspectData.safety.verdict === "danger"
+                        text: isDanger
+                              ? (parent.parent.confirmUnsafeOpen ? "Click Again to Confirm Open" : "⚠ Open Anyway (Unsafe)")
+                              : "Open Default"
+                        onClicked: {
+                            if (isDanger && !parent.parent.confirmUnsafeOpen) {
+                                parent.parent.confirmUnsafeOpen = true
+                            } else {
+                                parent.parent.confirmUnsafeOpen = false
+                                openDefaultProc.running = true
+                            }
+                        }
                     }
                 }
             }

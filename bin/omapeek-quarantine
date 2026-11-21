@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CMD="${1:-}"
+TARGET="${2:-}"
+
+if [[ -z "$CMD" || -z "$TARGET" ]]; then
+  echo "Usage: omapeek-quarantine <vault|open> <file-path>" >&2
+  exit 1
+fi
+
+ABS_PATH="$(python3 -c 'import os,sys; print(os.path.abspath(os.path.expanduser(sys.argv[1])))' "$TARGET")"
+if [[ ! -f "$ABS_PATH" ]]; then
+  echo "File not found: $ABS_PATH" >&2
+  exit 2
+fi
+
+VAULT_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/omapeek/quarantine"
+
+case "$CMD" in
+  vault)
+    mkdir -p "$VAULT_DIR"
+    chmod a-x "$ABS_PATH" 2>/dev/null || true
+    STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+    BASE="$(basename "$ABS_PATH")"
+    DEST="$VAULT_DIR/${STAMP}_${BASE}"
+    mv "$ABS_PATH" "$DEST"
+    chmod 0400 "$DEST" 2>/dev/null || true
+    echo "$DEST"
+    ;;
+
+  open)
+    if [[ "$(uname -s)" == "Linux" ]] && command -v bwrap >/dev/null 2>&1; then
+      BASE="$(basename "$ABS_PATH")"
+      exec bwrap \
+        --ro-bind /usr /usr \
+        --ro-bind /lib /lib \
+        --ro-bind-try /lib64 /lib64 \
+        --ro-bind /etc /etc \
+        --ro-bind "$ABS_PATH" "/tmp/quarantine-$BASE" \
+        --tmpfs /home/sandbox \
+        --setenv HOME /home/sandbox \
+        --proc /proc \
+        --dev /dev \
+        --unshare-net \
+        --die-with-parent \
+        xdg-open "/tmp/quarantine-$BASE"
+    elif [[ "$(uname -s)" == "Darwin" ]]; then
+      # macOS fallback: read-only temp copy with com.apple.quarantine xattr
+      TMP_DIR="$(mktemp -d /tmp/omapeek-quarantine.XXXXXX)"
+      DEST="$TMP_DIR/$(basename "$ABS_PATH")"
+      cp "$ABS_PATH" "$DEST"
+      chmod 0444 "$DEST"
+      xattr -w com.apple.quarantine "0081;$(printf '%x' "$(date +%s)");OmaPeek;" "$DEST" 2>/dev/null || true
+      open "$DEST"
+      echo "$DEST"
+    else
+      echo "bwrap not installed; cannot open in isolated sandbox." >&2
+      exit 3
+    fi
+    ;;
+
+  *)
+    echo "Unknown command: $CMD (expected vault or open)" >&2
+    exit 1
+    ;;
+esac
