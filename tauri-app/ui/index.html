@@ -111,11 +111,13 @@
       box-shadow: 0 0 10px var(--accent);
     }
     select.theme-select {
+      appearance: none;
+      -webkit-appearance: none;
       background: var(--elevated);
       color: var(--text);
       border: 1px solid var(--border);
       border-radius: 6px;
-      padding: 3px 6px;
+      padding: 4px 8px;
       font-size: 11px;
       cursor: pointer;
     }
@@ -335,6 +337,7 @@
       border-radius: 7px;
       font-size: 12px;
       font-weight: 500;
+      white-space: nowrap;
       cursor: pointer;
       transition: background 0.12s, border-color 0.12s, transform 0.08s;
     }
