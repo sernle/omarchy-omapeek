@@ -3,11 +3,14 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
+import Quickshell.Wayland
 
 Item {
     id: root
-    anchors.fill: parent
-    focus: true
+
+    property var shell: null
+    property var manifest: null
+    property bool opened: false
 
     property string pluginDir: Qt.resolvedUrl(".").toString().replace("file://", "")
     property string targetPath: ""
@@ -15,7 +18,20 @@ Item {
     property string errorText: ""
     property bool showSafetyDetails: true
 
-    signal closeRequested()
+    function open() {
+        root.opened = true
+        readTargetProc.running = true
+    }
+
+    function close() {
+        root.opened = false
+    }
+
+    onOpenedChanged: {
+        if (root.opened) {
+            readTargetProc.running = true
+        }
+    }
 
     // Theme tokens (Omarchy Quattro defaults — Tokyo Night palette)
     readonly property color bgScrim: "#aa0b0e14"
@@ -107,16 +123,37 @@ Item {
         }
     }
 
-    // Dimmed backdrop
-    Rectangle {
-        anchors.fill: parent
+    PanelWindow {
+        id: panel
+        visible: root.opened
+        anchors {
+            top: true
+            bottom: true
+            left: true
+            right: true
+        }
         color: root.bgScrim
+        WlrLayershell.layer: WlrLayer.Overlay
+        WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
 
         MouseArea {
             anchors.fill: parent
-            onClicked: root.closeRequested()
+            onClicked: root.close()
         }
-    }
+
+        Item {
+            anchors.fill: parent
+            focus: root.opened
+
+            Keys.onPressed: (event) => {
+                if (event.key === Qt.Key_Escape || event.key === Qt.Key_Space) {
+                    root.close()
+                    event.accepted = true
+                } else if (event.key === Qt.Key_S) {
+                    root.showSafetyDetails = !root.showSafetyDetails
+                    event.accepted = true
+                }
+            }
 
     // Centered Quick Look Modal
     Rectangle {
@@ -442,6 +479,7 @@ Item {
                     }
                 }
             }
+        }
         }
     }
 }
