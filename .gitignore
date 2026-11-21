@@ -1,4 +1,5 @@
 inspector-rs/target/
+tauri-app/src-tauri/target/
 bin/omapeek-inspect
 __pycache__/
 *.pyc

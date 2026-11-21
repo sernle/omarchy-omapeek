@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="tokyo-night">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OmaPeek</title>
+  <style>
+    :root, [data-theme="tokyo-night"] {
+      --bg: #13141f;
+      --surface: #1a1b26;
+      --elevated: #24283b;
+      --hover: #2d334d;
+      --active: #363d5c;
+      --border: #343b58;
+      --text: #c0caf5;
+      --muted: #7982a9;
+      --accent: #7aa2f7;
+      --safe: #9ece6a;
+      --caution: #e0af68;
+      --danger: #f7768e;
+    }
+    [data-theme="rose-pine"] {
+      --bg: #15131f;
+      --surface: #191724;
+      --elevated: #1f1d2e;
+      --hover: #29263c;
+      --active: #33304a;
+      --border: #403d52;
+      --text: #e0def4;
+      --muted: #908caa;
+      --accent: #ebbcba;
+      --safe: #9ccfd8;
+      --caution: #f6c177;
+      --danger: #eb6f92;
+    }
+    [data-theme="catppuccin"] {
+      --bg: #141421;
+      --surface: #1e1e2e;
+      --elevated: #27273a;
+      --hover: #313244;
+      --active: #3b3d54;
+      --border: #45475a;
+      --text: #cdd6f4;
+      --muted: #a6adc8;
+      --accent: #89b4fa;
+      --safe: #a6e3a1;
+      --caution: #f9e2af;
+      --danger: #f38ba8;
+    }
+    [data-theme="nord"] {
+      --bg: #242933;
+      --surface: #2e3440;
+      --elevated: #3b4252;
+      --hover: #434c5e;
+      --active: #4c566a;
+      --border: #4c566a;
+      --text: #eceff4;
+      --muted: #9aa5b8;
+      --accent: #88c0d0;
+      --safe: #a3be8c;
+      --caution: #ebcb8b;
+      --danger: #bf616a;
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Inter", "SF Pro Text", system-ui, sans-serif;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 12px;
+      gap: 10px;
+      overflow: hidden;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 4px 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .brand-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 14px;
+    }
+    .brand-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 10px var(--accent);
+    }
+    select.theme-select {
+      background: var(--elevated);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 3px 6px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .drop-hint {
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 11.5px;
+      color: var(--muted);
+      text-align: center;
+      transition: all 0.15s ease;
+    }
+    .drop-hint.active {
+      border-color: var(--accent);
+      background: rgba(122, 162, 247, 0.12);
+      color: var(--text);
+    }
+    .section-label {
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      padding: 2px 4px;
+    }
+    .sample-list {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .sample-btn {
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text);
+      padding: 7px 10px;
+      border-radius: 7px;
+      font-family: ui-monospace, "JetBrains Mono", Menlo, monospace;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.12s, border-color 0.12s;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .sample-btn:hover { background: var(--elevated); }
+    .sample-btn.active {
+      background: var(--elevated);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    /* Main Detail Pane */
+    .main {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .file-title {
+      font-weight: 600;
+      font-size: 14.5px;
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .chip {
+      font-size: 11px;
+      font-family: ui-monospace, Menlo, monospace;
+      color: var(--muted);
+      background: var(--elevated);
+      padding: 3px 8px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+    }
+    .verdict-pill {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      border: 1px solid currentColor;
+      transition: transform 0.1s;
+    }
+    .verdict-pill:active { transform: scale(0.96); }
+    .verdict-safe { color: var(--safe); background: rgba(158, 206, 106, 0.14); }
+    .verdict-caution { color: var(--caution); background: rgba(224, 175, 104, 0.15); }
+    .verdict-danger { color: var(--danger); background: rgba(247, 118, 142, 0.16); }
+
+    /* Safety Banner */
+    .safety-panel {
+      background: rgba(247, 118, 142, 0.06);
+      border-bottom: 1px solid var(--border);
+      padding: 11px 18px;
+      font-size: 12.5px;
+    }
+    .safety-summary { font-weight: 600; margin-bottom: 6px; }
+    .finding { display: flex; gap: 8px; margin-top: 5px; line-height: 1.4; }
+    .sev {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      font-family: ui-monospace, Menlo, monospace;
+      height: fit-content;
+    }
+    .sev-high { background: rgba(247, 118, 142, 0.22); color: var(--danger); }
+    .sev-medium { background: rgba(224, 175, 104, 0.22); color: var(--caution); }
+    .sev-low, .sev-info { background: rgba(122, 162, 247, 0.2); color: var(--accent); }
+
+    /* Content Canvas */
+    .content {
+      flex: 1;
+      overflow: auto;
+      padding: 18px;
+      background: var(--bg);
+      user-select: text;
+    }
+    .code-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: ui-monospace, "JetBrains Mono", Menlo, monospace;
+      font-size: 12.5px;
+      line-height: 1.55;
+    }
+    .code-ln {
+      width: 44px;
+      padding: 0 12px 0 4px;
+      text-align: right;
+      color: var(--muted);
+      opacity: 0.55;
+      user-select: none;
+      vertical-align: top;
+    }
+    .code-src { white-space: pre-wrap; word-break: break-word; }
+    .tok-kw { color: var(--accent); font-weight: 600; }
+    .tok-str { color: var(--safe); }
+    .tok-cmt { color: var(--muted); font-style: italic; }
+    .tok-num { color: var(--caution); }
+
+    .archive-search {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 7px;
+      padding: 7px 12px;
+      margin-bottom: 12px;
+      font-family: ui-monospace, Menlo, monospace;
+      font-size: 12.5px;
+      outline: none;
+    }
+    .archive-search:focus { border-color: var(--accent); }
+    .archive-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: ui-monospace, Menlo, monospace;
+      font-size: 12px;
+    }
+    .archive-table th, .archive-table td {
+      padding: 7px 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      text-align: left;
+    }
+    .archive-table th { color: var(--muted); }
+    .row-danger { background: rgba(247, 118, 142, 0.12); color: var(--danger); }
+
+    .preview-img {
+      display: block;
+      max-width: 100%;
+      max-height: 500px;
+      margin: 0 auto;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+    .center-box {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    /* Footer Action Bar */
+    .footer {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 10px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .hint { font-size: 11.5px; color: var(--muted); }
+    .actions { display: flex; align-items: center; gap: 8px; }
+    .btn {
+      background: var(--elevated);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 12px;
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.12s, border-color 0.12s, transform 0.08s;
+    }
+    .btn:hover { background: var(--hover); border-color: var(--accent); }
+    .btn:active { background: var(--active); transform: scale(0.97); }
+    .btn-danger {
+      color: var(--danger);
+      border-color: var(--danger);
+      background: rgba(247, 118, 142, 0.12);
+    }
+    .btn-danger:hover { background: rgba(247, 118, 142, 0.22); }
+    .btn-safe {
+      color: var(--safe);
+      border-color: var(--safe);
+      background: rgba(158, 206, 106, 0.14);
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 62px;
+      left: 50%;
+      transform: translateX(-50%) translateY(12px);
+      background: var(--elevated);
+      border: 1px solid var(--accent);
+      color: var(--text);
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-size: 12.5px;
+      font-weight: 500;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.45);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.18s ease, transform 0.18s ease;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.error { border-color: var(--danger); color: var(--danger); }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-title"><span class="brand-dot"></span>OmaPeek</div>
+        <select class="theme-select" id="themeSelect">
+          <option value="tokyo-night">Tokyo Night</option>
+          <option value="rose-pine">Rose Pine</option>
+          <option value="catppuccin">Catppuccin</option>
+          <option value="nord">Nord</option>
+        </select>
+      </div>
+      <div class="drop-hint" id="dropHint">Drop any file onto this window to inspect safely</div>
+      <div class="section-label">Samples</div>
+      <div class="sample-list" id="sampleList"></div>
+    </aside>
+
+    <main class="main">
+      <header class="header">
+        <div class="file-title" id="fileTitle">OmaPeek</div>
+        <span class="chip" id="fileMeta" style="display:none;"></span>
+        <button class="verdict-pill verdict-safe" id="verdictPill" style="display:none;"></button>
+      </header>
+      <section class="safety-panel" id="safetyPanel" style="display:none;"></section>
+      <section class="content" id="content">
+        <div class="center-box">
+          <div style="font-size:28px; color:var(--accent);">◎</div>
+          <div><strong>OmaPeek</strong> — Native Quick Look + Offline Safety Shield</div>
+          <div style="font-size:12px;">Pick a sample on the left or drop any file here.</div>
+        </div>
+      </section>
+      <footer class="footer">
+        <span class="hint"><strong>S</strong> Safety · <strong>C</strong> Copy Path · <strong>H</strong> SHA-256 · <strong>↑/↓</strong> Navigate</span>
+        <div class="actions" id="actionBar"></div>
+      </footer>
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const invoke = window.__TAURI__?.core?.invoke;
+    const listen = window.__TAURI__?.event?.listen;
+
+    const sampleListEl = document.getElementById("sampleList");
+    const fileTitleEl = document.getElementById("fileTitle");
+    const fileMetaEl = document.getElementById("fileMeta");
+    const verdictPillEl = document.getElementById("verdictPill");
+    const safetyPanelEl = document.getElementById("safetyPanel");
+    const contentEl = document.getElementById("content");
+    const actionBarEl = document.getElementById("actionBar");
+    const toastEl = document.getElementById("toast");
+    const dropHintEl = document.getElementById("dropHint");
+
+    let samples = [];
+    let activeIdx = -1;
+    let currentData = null;
+    let safetyExpanded = true;
+    let confirmUnsafe = false;
+    let toastTimer = null;
+
+    document.getElementById("themeSelect").addEventListener("change", (e) => {
+      document.documentElement.setAttribute("data-theme", e.target.value);
+    });
+
+    function showToast(msg, isError = false) {
+      toastEl.textContent = msg;
+      toastEl.className = `toast show ${isError ? "error" : ""}`;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toastEl.classList.remove("show"), 2600);
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    function highlightLine(line) {
+      const esc = escapeHtml(line);
+      if (/^\s*(#|\/\/|--)/.test(line)) return `<span class="tok-cmt">${esc}</span>`;
+      return esc
+        .replace(/(&quot;.*?&quot;|&#39;.*?&#39;)/g, '<span class="tok-str">$1</span>')
+        .replace(/\b(def|class|return|if|elif|else|for|while|import|from|as|fn|let|mut|pub|use|const|function|async|await|export|local|then|fi|do|done)\b/g, '<span class="tok-kw">$1</span>')
+        .replace(/\b(\d+)\b/g, '<span class="tok-num">$1</span>');
+    }
+
+    function renderCode(text) {
+      const rows = text.split("\n").map((l, i) =>
+        `<tr><td class="code-ln">${i + 1}</td><td class="code-src">${highlightLine(l)}</td></tr>`
+      ).join("");
+      return `<table class="code-table"><tbody>${rows}</tbody></table>`;
+    }
+
+    function renderArchive(preview, filter = "") {
+      const entries = (preview.entries || []).filter(e =>
+        !filter || e.name.toLowerCase().includes(filter.toLowerCase())
+      );
+      const rows = entries.map(e => {
+        const flagged = e.flags && e.flags.length > 0;
+        return `<tr class="${flagged ? "row-danger" : ""}">
+          <td>${e.is_dir ? "📁" : "📄"} ${escapeHtml(e.name)}</td>
+          <td>${e.size} B</td>
+          <td>${flagged ? escapeHtml(e.flags.join(", ").toUpperCase()) : "OK"}</td>
+        </tr>`;
+      }).join("");
+      return `
+        <input class="archive-search" id="archiveSearch" placeholder="Filter ${preview.entry_count} entries…" value="${escapeHtml(filter)}" />
+        <div style="margin-bottom:10px; font-size:12px; color:var(--muted);">
+          Unpacked: ${escapeHtml(preview.total_uncompressed_human)} · Ratio: ${preview.compression_ratio}x
+        </div>
+        <table class="archive-table">
+          <thead><tr><th>Entry</th><th>Size</th><th>Flags</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>`;
+    }
+
+    function renderSafetyPanel() {
+      if (!currentData || !safetyExpanded) {
+        safetyPanelEl.style.display = "none";
+        return;
+      }
+      const { safety } = currentData;
+      safetyPanelEl.style.display = "block";
+      const items = (safety.findings || []).map(f => `
+        <div class="finding">
+          <span class="sev sev-${f.severity}">${escapeHtml(f.severity)}</span>
+          <div><strong>${escapeHtml(f.title)}</strong> — ${escapeHtml(f.detail)}</div>
+        </div>`).join("");
+      const ruleNote = safety.rules_loaded != null ? ` · ${safety.rules_loaded} custom rules active` : "";
+      safetyPanelEl.innerHTML = `
+        <div class="safety-summary">${escapeHtml(safety.summary)}<span style="font-weight:400; color:var(--muted);">${escapeHtml(ruleNote)}</span></div>
+        ${items || '<div style="color:var(--muted);">All offline static checks passed.</div>'}`;
+    }
+
+    function renderActions() {
+      if (!currentData) return;
+      const { meta, safety } = currentData;
+      actionBarEl.innerHTML = "";
+
+      const addBtn = (label, cls, onClick) => {
+        const b = document.createElement("button");
+        b.className = `btn ${cls || ""}`;
+        b.textContent = label;
+        b.onclick = onClick;
+        actionBarEl.appendChild(b);
+      };
+
+      addBtn("Copy Path", "", () => {
+        navigator.clipboard?.writeText(meta.path);
+        showToast("Copied path to clipboard");
+      });
+
+      addBtn(`SHA-256: ${meta.sha256.slice(0, 10)}…`, "", () => {
+        navigator.clipboard?.writeText(meta.sha256);
+        showToast("Copied SHA-256 hash");
+      });
+
+      if (safety.verdict !== "safe") {
+        addBtn("🛡 Sandbox Open", "", async () => {
+          try {
+            const msg = await invoke("sandbox_open", { path: meta.path });
+            showToast(msg);
+          } catch (e) {
+            showToast(String(e), true);
+          }
+        });
+
+        addBtn("🔒 Quarantine", "", async () => {
+          try {
+            const dest = await invoke("quarantine_file", { path: meta.path });
+            showToast(`✓ Quarantined to ${dest}`);
+            await loadSamples();
+          } catch (e) {
+            showToast(String(e), true);
+          }
+        });
+      }
+
+      if (safety.verdict === "danger") {
+        addBtn(confirmUnsafe ? "Click Again to Confirm" : "⚠ Open Anyway", "btn-danger", async () => {
+          if (!confirmUnsafe) {
+            confirmUnsafe = true;
+            renderActions();
+            showToast("Click again to confirm opening unsafe file", true);
+            return;
+          }
+          confirmUnsafe = false;
+          renderActions();
+          try {
+            const msg = await invoke("open_default", { path: meta.path });
+            showToast(msg);
+          } catch (e) {
+            showToast(String(e), true);
+          }
+        });
+      } else {
+        addBtn("Open Default", "", async () => {
+          try {
+            const msg = await invoke("open_default", { path: meta.path });
+            showToast(msg);
+          } catch (e) {
+            showToast(String(e), true);
+          }
+        });
+      }
+    }
+
+    async function renderData(data) {
+      currentData = data;
+      confirmUnsafe = false;
+      const { meta, kind, preview, safety } = data;
+
+      fileTitleEl.textContent = meta.name;
+      fileMetaEl.style.display = "inline-block";
+      fileMetaEl.textContent = `${meta.size_human} · ${kind.toUpperCase()} · ${meta.magic}`;
+
+      verdictPillEl.style.display = "inline-block";
+      verdictPillEl.className = `verdict-pill verdict-${safety.verdict}`;
+      const icon = safety.verdict === "danger" ? "✕" : safety.verdict === "caution" ? "!" : "✓";
+      verdictPillEl.textContent = `${icon} ${safety.verdict.toUpperCase()} (${safety.score}/100)`;
+
+      safetyExpanded = safety.findings.length > 0;
+      renderSafetyPanel();
+      renderActions();
+
+      if (kind === "image") {
+        try {
+          const uri = await invoke("read_data_uri", { path: meta.path, mime: meta.mime });
+          const dims = preview.width && preview.height ? `${preview.width} × ${preview.height}px` : "";
+          contentEl.innerHTML = `<div style="text-align:center;"><img class="preview-img" src="${uri}" /><div style="margin-top:10px; font-size:12px; color:var(--muted);">${escapeHtml(dims)}</div></div>`;
+        } catch (e) {
+          contentEl.innerHTML = `<div class="center-box">${escapeHtml(e)}</div>`;
+        }
+      } else if (kind === "code" || kind === "markdown") {
+        contentEl.innerHTML = renderCode(preview.content || "");
+      } else if (kind === "archive") {
+        const bindSearch = (val = "") => {
+          contentEl.innerHTML = renderArchive(preview, val);
+          const input = document.getElementById("archiveSearch");
+          if (input) {
+            input.focus();
+            input.setSelectionRange(val.length, val.length);
+            input.oninput = (ev) => bindSearch(ev.target.value);
+          }
+        };
+        bindSearch("");
+      } else if (kind === "pdf") {
+        contentEl.innerHTML = `
+          <div class="center-box">
+            <div style="font-size:32px;">📄</div>
+            <div><strong>PDF v${escapeHtml(preview.version)}</strong> · ${preview.page_count} page(s)</div>
+            ${preview.title ? `<div style="color:var(--text);">${escapeHtml(preview.title)}</div>` : ""}
+            <div style="font-size:12px;">SHA-256: <code>${escapeHtml(meta.sha256.slice(0, 24))}…</code></div>
+          </div>`;
+      } else if (kind === "audio" || kind === "video") {
+        const bits = [
+          preview.codec,
+          preview.duration_secs != null ? `${preview.duration_secs}s` : null,
+          preview.sample_rate ? `${(preview.sample_rate / 1000).toFixed(1)} kHz` : null,
+          preview.channels ? `${preview.channels} ch` : null,
+        ].filter(Boolean).join(" · ");
+        try {
+          const uri = await invoke("read_data_uri", { path: meta.path, mime: meta.mime });
+          const tag = kind === "video"
+            ? `<video controls style="max-width:100%; max-height:400px; border-radius:8px;" src="${uri}"></video>`
+            : `<audio controls style="width:100%; max-width:480px;" src="${uri}"></audio>`;
+          contentEl.innerHTML = `<div class="center-box"><div style="font-family:ui-monospace,Menlo,monospace;">${escapeHtml(bits)}</div>${tag}</div>`;
+        } catch (e) {
+          contentEl.innerHTML = `<div class="center-box">${escapeHtml(bits)}</div>`;
+        }
+      } else {
+        contentEl.innerHTML = `<pre style="font-family:ui-monospace,Menlo,monospace; font-size:12px;">${escapeHtml(preview.hex_head || "Binary file")}</pre>`;
+      }
+    }
+
+    async function inspectPath(path, idx = -1) {
+      activeIdx = idx;
+      renderSampleList();
+      try {
+        const data = await invoke("inspect_file", { path });
+        await renderData(data);
+      } catch (err) {
+        showToast(String(err), true);
+      }
+    }
+
+    function renderSampleList() {
+      sampleListEl.innerHTML = samples.map((s, i) =>
+        `<button class="sample-btn ${i === activeIdx ? "active" : ""}" data-idx="${i}">${escapeHtml(s.name)}</button>`
+      ).join("");
+      sampleListEl.querySelectorAll(".sample-btn").forEach(btn => {
+        btn.onclick = () => {
+          const i = Number(btn.dataset.idx);
+          inspectPath(samples[i].path, i);
+        };
+      });
+    }
+
+    async function loadSamples() {
+      samples = await invoke("list_samples");
+      renderSampleList();
+    }
+
+    verdictPillEl.onclick = () => {
+      safetyExpanded = !safetyExpanded;
+      renderSafetyPanel();
+    };
+
+    document.addEventListener("keydown", (e) => {
+      if (document.activeElement?.tagName === "INPUT") return;
+      if (e.key === "s" || e.key === "S") {
+        safetyExpanded = !safetyExpanded;
+        renderSafetyPanel();
+      } else if ((e.key === "c" || e.key === "C") && currentData) {
+        navigator.clipboard?.writeText(currentData.meta.path);
+        showToast("Copied path to clipboard");
+      } else if ((e.key === "h" || e.key === "H") && currentData) {
+        navigator.clipboard?.writeText(currentData.meta.sha256);
+        showToast("Copied SHA-256 hash");
+      } else if (e.key === "ArrowDown" && samples.length) {
+        const next = (activeIdx + 1) % samples.length;
+        inspectPath(samples[next].path, next);
+      } else if (e.key === "ArrowUp" && samples.length) {
+        const prev = (activeIdx - 1 + samples.length) % samples.length;
+        inspectPath(samples[prev].path, prev);
+      }
+    });
+
+    async function boot() {
+      if (!invoke) {
+        contentEl.innerHTML = `<div class="center-box">Run inside Tauri desktop app (<code>cargo run</code> in <code>tauri-app/src-tauri</code>).</div>`;
+        return;
+      }
+      if (listen) {
+        listen("tauri://drag-enter", () => dropHintEl.classList.add("active"));
+        listen("tauri://drag-leave", () => dropHintEl.classList.remove("active"));
+        listen("tauri://drag-drop", (ev) => {
+          dropHintEl.classList.remove("active");
+          const paths = ev.payload?.paths || [];
+          if (paths.length) inspectPath(paths[0], -1);
+        });
+      }
+      await loadSamples();
+      const initial = await invoke("initial_file");
+      if (initial) {
+        inspectPath(initial, -1);
+      } else if (samples.length) {
+        inspectPath(samples[0].path, 0);
+      }
+    }
+
+    boot();
+  </script>
+</body>
+</html>

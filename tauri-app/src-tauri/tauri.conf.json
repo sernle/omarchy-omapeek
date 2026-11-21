@@ -1,0 +1,30 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "OmaPeek",
+  "version": "0.2.0",
+  "identifier": "dev.sonlc.omapeek",
+  "build": {
+    "frontendDist": "../ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "OmaPeek — Quick Look + Safety Shield",
+        "width": 1060,
+        "height": 720,
+        "minWidth": 760,
+        "minHeight": 500,
+        "resizable": true,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all"
+  }
+}
