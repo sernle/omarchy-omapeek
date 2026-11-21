@@ -17,8 +17,19 @@ Item {
     property string errorText: ""
     property bool showSafetyDetails: true
     property bool quarantinedDone: false
+    property string statusText: ""
+    property bool statusIsError: false
+
+    function setStatus(msg, isErr) {
+        root.statusText = msg
+        root.statusIsError = isErr
+        statusClearTimer.restart()
+    }
 
     function open(payload) {
+        root.quarantinedDone = false
+        root.statusText = ""
+        footerBar.confirmUnsafeOpen = false
         root.opened = true
         if (payload && payload.length > 0) {
             root.loadFile(payload)
@@ -29,10 +40,11 @@ Item {
 
     function close() {
         root.opened = false
+        footerBar.confirmUnsafeOpen = false
     }
 
     function dismiss() {
-        root.opened = false
+        root.close()
     }
 
     function toggle() {
@@ -40,10 +52,32 @@ Item {
         else root.open("")
     }
 
-    onOpenedChanged: {
-        if (root.opened) {
-            readTargetProc.running = true
+    function triggerOpenDefault() {
+        if (!root.targetPath) return
+        const isDanger = root.inspectData && root.inspectData.safety.verdict === "danger"
+        if (isDanger && !footerBar.confirmUnsafeOpen) {
+            footerBar.confirmUnsafeOpen = true
+            root.setStatus("Click again or press O to confirm unsafe open", true)
+            return
         }
+        footerBar.confirmUnsafeOpen = false
+        openDefaultProc.command = ["xdg-open", root.targetPath]
+        openDefaultProc.running = true
+        root.setStatus("Opening with default app…", false)
+    }
+
+    function triggerSandboxOpen() {
+        if (!root.targetPath) return
+        quarantineOpenProc.command = [root.pluginDir + "bin/omapeek-quarantine", "open", root.targetPath]
+        quarantineOpenProc.running = true
+        root.setStatus("Launching isolated bwrap sandbox…", false)
+    }
+
+    function triggerQuarantine() {
+        if (!root.targetPath) return
+        quarantineVaultProc.command = [root.pluginDir + "bin/omapeek-quarantine", "vault", root.targetPath]
+        quarantineVaultProc.running = true
+        root.setStatus("Moving to quarantine vault…", false)
     }
 
     // Theme tokens (Omarchy Quattro defaults — Tokyo Night palette)
@@ -68,6 +102,9 @@ Item {
         targetPath = path
         errorText = ""
         inspectData = null
+        quarantinedDone = false
+        statusText = ""
+        footerBar.confirmUnsafeOpen = false
         inspectProc.command = [
             "sh", "-c",
             "if [ -x \"$1/bin/omapeek-inspect\" ]; then exec \"$1/bin/omapeek-inspect\" \"$2\"; else exec python3 \"$1/bin/omapeek-inspect.py\" \"$2\"; fi",
@@ -78,16 +115,6 @@ Item {
 
     Component.onCompleted: {
         readTargetProc.running = true
-    }
-
-    Keys.onPressed: (event) => {
-        if (event.key === Qt.Key_Escape || event.key === Qt.Key_Space) {
-            closeRequested()
-            event.accepted = true
-        } else if (event.key === Qt.Key_S) {
-            showSafetyDetails = !showSafetyDetails
-            event.accepted = true
-        }
     }
 
     Process {
@@ -124,21 +151,35 @@ Item {
 
     Process {
         id: openDefaultProc
-        command: ["xdg-open", root.targetPath]
+        onExited: (code) => {
+            if (code === 0) {
+                root.close()
+            } else {
+                root.setStatus("No default app registered for this file (exit " + code + ")", true)
+            }
+        }
     }
 
     Process {
         id: quarantineOpenProc
-        command: [pluginDir + "/bin/omapeek-quarantine", "open", root.targetPath]
+        onExited: (code) => {
+            if (code === 0) {
+                root.setStatus("Opened in isolated bwrap sandbox", false)
+            } else {
+                root.setStatus("Sandbox open failed (exit " + code + ")", true)
+            }
+        }
     }
 
     Process {
         id: quarantineVaultProc
-        command: [pluginDir + "/bin/omapeek-quarantine", "vault", root.targetPath]
         onExited: (code) => {
             if (code === 0) {
                 root.quarantinedDone = true
+                root.setStatus("Moved to ~/.local/share/omapeek/quarantine/", false)
                 closeTimer.start()
+            } else {
+                root.setStatus("Quarantine failed (exit " + code + ")", true)
             }
         }
     }
@@ -150,6 +191,12 @@ Item {
             root.quarantinedDone = false
             root.close()
         }
+    }
+
+    Timer {
+        id: statusClearTimer
+        interval: 3500
+        onTriggered: root.statusText = ""
     }
 
     OverlayWindow {
@@ -167,6 +214,9 @@ Item {
                     event.accepted = true
                 } else if (event.key === Qt.Key_S) {
                     root.showSafetyDetails = !root.showSafetyDetails
+                    event.accepted = true
+                } else if (event.key === Qt.Key_O) {
+                    root.triggerOpenDefault()
                     event.accepted = true
                 }
             }
@@ -461,6 +511,7 @@ Item {
 
             // Bottom Action Bar
             Rectangle {
+                id: footerBar
                 Layout.fillWidth: true
                 height: 44
                 color: root.bgElevated
@@ -471,12 +522,17 @@ Item {
                     anchors.fill: parent
                     anchors.leftMargin: 18
                     anchors.rightMargin: 18
-                    spacing: 12
+                    spacing: 10
 
                     Text {
-                        text: "Space/Esc: Close  ·  S: Safety  ·  O: Open"
-                        color: root.textMuted
+                        text: root.statusText.length > 0
+                              ? root.statusText
+                              : "Space/Esc: Close  ·  S: Safety  ·  O: Open"
+                        color: root.statusText.length > 0
+                               ? (root.statusIsError ? root.dangerColor : root.safeColor)
+                               : root.textMuted
                         font.pixelSize: 11
+                        elide: Text.ElideRight
                         Layout.fillWidth: true
                     }
 
@@ -485,16 +541,15 @@ Item {
                         height: 28
                         implicitWidth: sbText.implicitWidth + 20
                         radius: 6
-                        color: root.bgSurface
-                        border.color: root.borderSubtle
+                        color: sbMouse.pressed ? "#343b58" : (sbMouse.containsMouse ? "#2d334d" : root.bgSurface)
+                        border.color: sbMouse.containsMouse ? root.accentColor : root.borderSubtle
                         Text { id: sbText; anchors.centerIn: parent; text: "🛡 Sandbox Open"; color: root.textPrimary; font.pixelSize: 12 }
                         MouseArea {
+                            id: sbMouse
                             anchors.fill: parent
+                            hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                quarantineOpenProc.command = [root.pluginDir + "/bin/omapeek-quarantine", "open", root.targetPath]
-                                quarantineOpenProc.running = true
-                            }
+                            onClicked: root.triggerSandboxOpen()
                         }
                     }
 
@@ -503,8 +558,10 @@ Item {
                         height: 28
                         implicitWidth: qText.implicitWidth + 20
                         radius: 6
-                        color: root.quarantinedDone ? "#1f3326" : root.bgSurface
-                        border.color: root.quarantinedDone ? root.safeColor : root.borderSubtle
+                        color: root.quarantinedDone ? "#1f3326"
+                             : (qMouse.pressed ? "#343b58" : (qMouse.containsMouse ? "#2d334d" : root.bgSurface))
+                        border.color: root.quarantinedDone ? root.safeColor
+                                    : (qMouse.containsMouse ? root.cautionColor : root.borderSubtle)
                         Text {
                             id: qText
                             anchors.centerIn: parent
@@ -513,12 +570,11 @@ Item {
                             font.pixelSize: 12
                         }
                         MouseArea {
+                            id: qMouse
                             anchors.fill: parent
+                            hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                quarantineVaultProc.command = [root.pluginDir + "/bin/omapeek-quarantine", "vault", root.targetPath]
-                                quarantineVaultProc.running = true
-                            }
+                            onClicked: root.triggerQuarantine()
                         }
                     }
 
@@ -527,28 +583,26 @@ Item {
                         height: 28
                         implicitWidth: openText.implicitWidth + 20
                         radius: 6
-                        color: isDanger ? "#3a1d28" : root.bgSurface
-                        border.color: isDanger ? root.dangerColor : root.borderSubtle
+                        color: isDanger
+                               ? (openMouse.pressed ? "#522434" : (openMouse.containsMouse ? "#47212f" : "#3a1d28"))
+                               : (openMouse.pressed ? "#343b58" : (openMouse.containsMouse ? "#2d334d" : root.bgSurface))
+                        border.color: isDanger ? root.dangerColor
+                                    : (openMouse.containsMouse ? root.accentColor : root.borderSubtle)
                         Text {
                             id: openText
                             anchors.centerIn: parent
                             text: parent.isDanger
-                                  ? (parent.parent.parent.confirmUnsafeOpen ? "Click Again to Confirm" : "⚠ Open Anyway (Unsafe)")
+                                  ? (footerBar.confirmUnsafeOpen ? "Click Again to Confirm" : "⚠ Open Anyway (Unsafe)")
                                   : "Open Default"
                             color: parent.isDanger ? root.dangerColor : root.textPrimary
                             font.pixelSize: 12
                         }
                         MouseArea {
+                            id: openMouse
                             anchors.fill: parent
+                            hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                if (parent.isDanger && !parent.parent.parent.confirmUnsafeOpen) {
-                                    parent.parent.parent.confirmUnsafeOpen = true
-                                } else {
-                                    parent.parent.parent.confirmUnsafeOpen = false
-                                    openDefaultProc.running = true
-                                }
-                            }
+                            onClicked: root.triggerOpenDefault()
                         }
                     }
                 }

@@ -5,7 +5,10 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
+import stat
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -109,6 +112,32 @@ class TestOmaPeekRustInspector(unittest.TestCase):
             self.assertEqual(rs["meta"]["sha256"], py["meta"]["sha256"], name)
             self.assertEqual(rs["kind"], py["kind"], name)
             self.assertEqual(rs["safety"]["verdict"], py["safety"]["verdict"], name)
+
+    def test_quarantine_vault_moves_and_locks_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            src = tmp_path / "suspect.sh"
+            src.write_text("#!/bin/sh\necho test\n", encoding="utf-8")
+            os.chmod(src, 0o755)
+            vault_home = tmp_path / "xdg_data"
+            env = {**os.environ, "XDG_DATA_HOME": str(vault_home)}
+            proc = subprocess.run(
+                [str(ROOT / "bin" / "omapeek-quarantine"), "vault", str(src)],
+                capture_output=True, text=True, check=True, env=env,
+            )
+            dest = Path(proc.stdout.strip())
+            self.assertFalse(src.exists(), "Original file should be moved out")
+            self.assertTrue(dest.exists(), "File should exist in quarantine vault")
+            mode = stat.S_IMODE(dest.stat().st_mode)
+            self.assertEqual(mode, 0o400, "Quarantined file must be read-only (0400)")
+
+    def test_overlay_qml_sanity(self) -> None:
+        qml = (ROOT / "Overlay.qml").read_text(encoding="utf-8")
+        self.assertNotIn("closeRequested", qml, "Dead closeRequested() reference must not exist")
+        self.assertEqual(qml.count("{"), qml.count("}"), "Overlay.qml braces must be balanced")
+        self.assertIn("hoverEnabled: true", qml, "Buttons must have hover feedback")
+        self.assertIn("triggerSandboxOpen", qml)
+        self.assertIn("triggerQuarantine", qml)
 
 
 if __name__ == "__main__":

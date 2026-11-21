@@ -33,20 +33,28 @@ case "$CMD" in
     if [[ "$(uname -s)" == "Linux" ]] && command -v bwrap >/dev/null 2>&1; then
       BASE="$(basename "$ABS_PATH")"
       OPENER="$(command -v xdg-open || command -v gio || echo /usr/bin/xdg-open)"
-      exec bwrap \
-        --ro-bind /usr /usr \
-        --ro-bind-try /bin /bin \
-        --ro-bind /lib /lib \
-        --ro-bind-try /lib64 /lib64 \
-        --ro-bind /etc /etc \
-        --ro-bind "$ABS_PATH" "/tmp/quarantine-$BASE" \
-        --tmpfs /home/sandbox \
-        --setenv HOME /home/sandbox \
-        --proc /proc \
-        --dev /dev \
-        --unshare-net \
-        --die-with-parent \
-        "$OPENER" "/tmp/quarantine-$BASE"
+      RUNTIME="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+      WDISPLAY="${WAYLAND_DISPLAY:-wayland-1}"
+      BWRAP_ARGS=(
+        --ro-bind /usr /usr
+        --ro-bind-try /bin /bin
+        --ro-bind /lib /lib
+        --ro-bind-try /lib64 /lib64
+        --ro-bind /etc /etc
+        --ro-bind "$ABS_PATH" "/tmp/quarantine-$BASE"
+        --tmpfs /home/sandbox
+        --setenv HOME /home/sandbox
+        --setenv XDG_RUNTIME_DIR "$RUNTIME"
+        --setenv WAYLAND_DISPLAY "$WDISPLAY"
+        --proc /proc
+        --dev /dev
+        --unshare-net
+        --die-with-parent
+      )
+      if [[ -S "$RUNTIME/$WDISPLAY" ]]; then
+        BWRAP_ARGS+=(--dir "$RUNTIME" --bind "$RUNTIME/$WDISPLAY" "$RUNTIME/$WDISPLAY")
+      fi
+      exec bwrap "${BWRAP_ARGS[@]}" "$OPENER" "/tmp/quarantine-$BASE"
     elif [[ "$(uname -s)" == "Darwin" ]]; then
       # macOS fallback: read-only temp copy with com.apple.quarantine xattr
       TMP_DIR="$(mktemp -d /tmp/omapeek-quarantine.XXXXXX)"
