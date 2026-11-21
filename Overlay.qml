@@ -6,7 +6,8 @@ import Quickshell.Io
 
 Item {
     id: root
-    anchors.fill: parent
+    implicitWidth: 980
+    implicitHeight: 720
     visible: root.opened
     focus: root.opened
 
