@@ -20,6 +20,11 @@ fi
 
 TARGET="$(python3 -c 'import os,sys; print(os.path.abspath(os.path.expanduser(sys.argv[1])))' "$1")"
 
+if [[ ! -e "$TARGET" ]]; then
+  echo "omapeek: file not found: $TARGET" >&2
+  exit 2
+fi
+
 if [[ "$(uname -s)" == "Linux" ]] && command -v omarchy-shell >/dev/null 2>&1; then
   # Write target path to runtime IPC file and summon the OmaPeek overlay
   RUNTIME_DIR="${XDG_RUNTIME_DIR:-/tmp}/omapeek"
