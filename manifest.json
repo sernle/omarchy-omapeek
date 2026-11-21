@@ -11,6 +11,6 @@
   ],
   "entryPoints": {
     "overlay": "Overlay.qml",
-    "bar-widget": "BarWidget.qml"
+    "barWidget": "BarWidget.qml"
   }
 }
