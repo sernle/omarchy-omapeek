@@ -634,17 +634,27 @@
         const bits = [
           preview.codec,
           preview.duration_secs != null ? `${preview.duration_secs}s` : null,
+          preview.width && preview.height ? `${preview.width}×${preview.height}` : null,
           preview.sample_rate ? `${(preview.sample_rate / 1000).toFixed(1)} kHz` : null,
           preview.channels ? `${preview.channels} ch` : null,
+          preview.bitrate_kbps ? `${preview.bitrate_kbps} kbps` : null,
         ].filter(Boolean).join(" · ");
-        try {
-          const uri = await invoke("read_data_uri", { path: meta.path, mime: meta.mime });
-          const tag = kind === "video"
-            ? `<video controls style="max-width:100%; max-height:400px; border-radius:8px;" src="${uri}"></video>`
-            : `<audio controls style="width:100%; max-width:480px;" src="${uri}"></audio>`;
-          contentEl.innerHTML = `<div class="center-box"><div style="font-family:ui-monospace,Menlo,monospace;">${escapeHtml(bits)}</div>${tag}</div>`;
-        } catch (e) {
-          contentEl.innerHTML = `<div class="center-box">${escapeHtml(bits)}</div>`;
+        contentEl.innerHTML = `
+          <div class="center-box">
+            <div style="font-size:32px;">${kind === "video" ? "🎬" : "🎵"}</div>
+            <div style="font-family:ui-monospace,Menlo,monospace; color:var(--text);">${escapeHtml(bits || kind.toUpperCase())}</div>
+            <button class="btn" id="playMediaBtn">▶ Open in Media Player</button>
+          </div>`;
+        const playBtn = document.getElementById("playMediaBtn");
+        if (playBtn) {
+          playBtn.onclick = async () => {
+            try {
+              const msg = await invoke("open_default", { path: meta.path });
+              showToast(msg);
+            } catch (e) {
+              showToast(String(e), true);
+            }
+          };
         }
       } else {
         contentEl.innerHTML = `<pre style="font-family:ui-monospace,Menlo,monospace; font-size:12px;">${escapeHtml(preview.hex_head || "Binary file")}</pre>`;
