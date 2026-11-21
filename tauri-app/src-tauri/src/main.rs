@@ -161,6 +161,12 @@ fn quarantine_file(path: String) -> Result<String, String> {
 }
 
 fn main() {
+    #[cfg(target_os = "linux")]
+    if env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+        // Avoid blank WebKitGTK window under Wayland / Hyprland virtualized GPUs
+        unsafe { env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1"); }
+    }
+
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             initial_file,
