@@ -69,6 +69,8 @@ fi
 # 5. Validate & reload on Omarchy Quattro
 if command -v omarchy >/dev/null 2>&1; then
   omarchy plugin validate "$INSTALL_DIR" || true
+  omarchy plugin disable "$PLUGIN_ID" >/dev/null 2>&1 || true
+  omarchy plugin enable "$PLUGIN_ID" >/dev/null 2>&1 || true
 fi
 if command -v omarchy-shell >/dev/null 2>&1; then
   omarchy-shell shell rescanPlugins || true
