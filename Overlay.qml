@@ -3,10 +3,12 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
-import Quickshell.Wayland
 
 Item {
     id: root
+    anchors.fill: parent
+    visible: root.opened
+    focus: root.opened
 
     property var shell: null
     property var manifest: null
@@ -18,13 +20,26 @@ Item {
     property string errorText: ""
     property bool showSafetyDetails: true
 
-    function open() {
+    function open(payload) {
         root.opened = true
-        readTargetProc.running = true
+        if (payload && payload.length > 0) {
+            root.loadFile(payload)
+        } else {
+            readTargetProc.running = true
+        }
     }
 
     function close() {
         root.opened = false
+    }
+
+    function dismiss() {
+        root.opened = false
+    }
+
+    function toggle() {
+        if (root.opened) root.dismiss()
+        else root.open("")
     }
 
     onOpenedChanged: {
@@ -123,37 +138,26 @@ Item {
         }
     }
 
-    PanelWindow {
-        id: panel
-        visible: root.opened
-        anchors {
-            top: true
-            bottom: true
-            left: true
-            right: true
-        }
+    // Dimmed backdrop
+    Rectangle {
+        anchors.fill: parent
         color: root.bgScrim
-        WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
 
         MouseArea {
             anchors.fill: parent
             onClicked: root.close()
         }
+    }
 
-        Item {
-            anchors.fill: parent
-            focus: root.opened
-
-            Keys.onPressed: (event) => {
-                if (event.key === Qt.Key_Escape || event.key === Qt.Key_Space) {
-                    root.close()
-                    event.accepted = true
-                } else if (event.key === Qt.Key_S) {
-                    root.showSafetyDetails = !root.showSafetyDetails
-                    event.accepted = true
-                }
-            }
+    Keys.onPressed: (event) => {
+        if (event.key === Qt.Key_Escape || event.key === Qt.Key_Space) {
+            root.close()
+            event.accepted = true
+        } else if (event.key === Qt.Key_S) {
+            root.showSafetyDetails = !root.showSafetyDetails
+            event.accepted = true
+        }
+    }
 
     // Centered Quick Look Modal
     Rectangle {
@@ -479,7 +483,6 @@ Item {
                     }
                 }
             }
-        }
         }
     }
 }
