@@ -16,6 +16,7 @@ Item {
     property var inspectData: null
     property string errorText: ""
     property bool showSafetyDetails: true
+    property bool quarantinedDone: false
 
     function open(payload) {
         root.opened = true
@@ -135,7 +136,19 @@ Item {
         id: quarantineVaultProc
         command: [pluginDir + "/bin/omapeek-quarantine", "vault", root.targetPath]
         onExited: (code) => {
-            if (code === 0) root.closeRequested()
+            if (code === 0) {
+                root.quarantinedDone = true
+                closeTimer.start()
+            }
+        }
+    }
+
+    Timer {
+        id: closeTimer
+        interval: 900
+        onTriggered: {
+            root.quarantinedDone = false
+            root.close()
         }
     }
 
@@ -483,9 +496,15 @@ Item {
                         height: 28
                         implicitWidth: qText.implicitWidth + 20
                         radius: 6
-                        color: root.bgSurface
-                        border.color: root.borderSubtle
-                        Text { id: qText; anchors.centerIn: parent; text: "🔒 Quarantine"; color: root.textPrimary; font.pixelSize: 12 }
+                        color: root.quarantinedDone ? "#1f3326" : root.bgSurface
+                        border.color: root.quarantinedDone ? root.safeColor : root.borderSubtle
+                        Text {
+                            id: qText
+                            anchors.centerIn: parent
+                            text: root.quarantinedDone ? "✓ Quarantined!" : "🔒 Quarantine"
+                            color: root.quarantinedDone ? root.safeColor : root.textPrimary
+                            font.pixelSize: 12
+                        }
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: quarantineVaultProc.running = true }
                     }
 
