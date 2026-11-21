@@ -70,7 +70,11 @@ Item {
         targetPath = path
         errorText = ""
         inspectData = null
-        inspectProc.command = [pluginDir + "/bin/omapeek-inspect", path]
+        inspectProc.command = [
+            "sh", "-c",
+            "if [ -x \"$1/bin/omapeek-inspect\" ]; then exec \"$1/bin/omapeek-inspect\" \"$2\"; else exec python3 \"$1/bin/omapeek-inspect.py\" \"$2\"; fi",
+            "omapeek", pluginDir, path
+        ]
         inspectProc.running = true
     }
 
