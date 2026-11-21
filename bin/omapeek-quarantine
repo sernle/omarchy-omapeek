@@ -32,8 +32,10 @@ case "$CMD" in
   open)
     if [[ "$(uname -s)" == "Linux" ]] && command -v bwrap >/dev/null 2>&1; then
       BASE="$(basename "$ABS_PATH")"
+      OPENER="$(command -v xdg-open || command -v gio || echo /usr/bin/xdg-open)"
       exec bwrap \
         --ro-bind /usr /usr \
+        --ro-bind-try /bin /bin \
         --ro-bind /lib /lib \
         --ro-bind-try /lib64 /lib64 \
         --ro-bind /etc /etc \
@@ -44,7 +46,7 @@ case "$CMD" in
         --dev /dev \
         --unshare-net \
         --die-with-parent \
-        xdg-open "/tmp/quarantine-$BASE"
+        "$OPENER" "/tmp/quarantine-$BASE"
     elif [[ "$(uname -s)" == "Darwin" ]]; then
       # macOS fallback: read-only temp copy with com.apple.quarantine xattr
       TMP_DIR="$(mktemp -d /tmp/omapeek-quarantine.XXXXXX)"
