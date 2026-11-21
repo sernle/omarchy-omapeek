@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "sonlc.omapeek",
+  "name": "OmaPeek",
+  "version": "0.1.0",
+  "author": "sonlc",
+  "description": "macOS-style instant Quick Look overlay with offline malicious-file safety checks for Images, Markdown/Code, Archives/ZIPs, and PDFs.",
+  "kinds": [
+    "overlay",
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "overlay": "Overlay.qml",
+    "bar-widget": "BarWidget.qml"
+  }
+}

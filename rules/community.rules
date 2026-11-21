@@ -1,0 +1,20 @@
+# OmaPeek Custom Safety Rule Pack
+# Format: severity|code|extensions|needle|title|detail
+#   severity:   high | medium | low | info
+#   code:       UPPER_SNAKE_CASE identifier
+#   extensions: * (all text/code) or comma-separated list like .sh,.py,.js
+#   needle:     case-insensitive substring to match
+#   title:      short human title
+#   detail:     explanation shown in Quick Look safety banner
+#
+# Users can add their own rules in ~/.config/omarchy/omapeek.rules
+# or point OMAPEEK_RULES=/path/to/custom.rules.
+
+high|WEBHOOK_EXFIL|.sh,.bash,.zsh,.py,.js,.ts,.rb,.ps1|discord.com/api/webhooks|Discord webhook exfiltration|References a Discord webhook URL, commonly used by info-stealers to exfiltrate tokens or files.
+high|TELEGRAM_EXFIL|.sh,.bash,.zsh,.py,.js,.ts|api.telegram.org/bot|Telegram bot exfiltration|References a Telegram Bot API endpoint, often used for covert data exfiltration.
+high|LD_PRELOAD_HIJACK|.sh,.bash,.zsh,.py,.c,.rs|/etc/ld.so.preload|LD_PRELOAD rootkit persistence|Modifies `/etc/ld.so.preload` to inject shared libraries into every process.
+high|CRYPTO_MINER|*|stratum+tcp://|Cryptocurrency miner pool URL|Contains a `stratum+tcp://` mining pool address (possible cryptojacker).
+high|SSH_AUTH_KEYS|.sh,.bash,.zsh,.py|authorized_keys|Modifies SSH authorized_keys|References `~/.ssh/authorized_keys`, which can grant persistent remote SSH access.
+medium|MACOS_OSASCRIPT_PHISH|.sh,.bash,.zsh,.py,.scpt|display dialog|macOS dialog prompt via osascript|Uses `display dialog` which can be abused to phish user passwords.
+medium|CURL_INSECURE|.sh,.bash,.zsh|curl -k|TLS certificate verification disabled|Uses `curl -k` (`--insecure`), disabling HTTPS certificate checks.
+medium|CHMOD_EXEC_TMP|.sh,.bash,.zsh|chmod +x /tmp/|Marks file in /tmp as executable|Downloads or drops a payload into `/tmp/` and marks it executable.

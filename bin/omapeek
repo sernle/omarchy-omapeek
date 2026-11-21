@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PLUGIN_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+if [[ $# -lt 1 ]]; then
+  echo "Usage: omapeek [--json] <file-path>" >&2
+  exit 1
+fi
+
+if [[ "$1" == "--json" ]]; then
+  shift
+  if [[ -x "$SCRIPT_DIR/omapeek-inspect" ]]; then
+    exec "$SCRIPT_DIR/omapeek-inspect" "$1"
+  else
+    exec python3 "$SCRIPT_DIR/omapeek-inspect.py" "$1"
+  fi
+fi
+
+TARGET="$(python3 -c 'import os,sys; print(os.path.abspath(os.path.expanduser(sys.argv[1])))' "$1")"
+
+if [[ "$(uname -s)" == "Linux" ]] && command -v omarchy-shell >/dev/null 2>&1; then
+  # Write target path to runtime IPC file and summon the OmaPeek overlay
+  RUNTIME_DIR="${XDG_RUNTIME_DIR:-/tmp}/omapeek"
+  mkdir -p "$RUNTIME_DIR"
+  printf '%s' "$TARGET" > "$RUNTIME_DIR/target"
+  exec omarchy-shell shell summon sonlc.omapeek
+else
+  # macOS / dev fallback: open in the local mock preview runner
+  PORT="${OMAPEEK_PORT:-4173}"
+  ENCODED="$(python3 -c 'import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))' "$TARGET")"
+  URL="http://127.0.0.1:${PORT}/?file=${ENCODED}"
+  if ! curl -fsS "http://127.0.0.1:${PORT}/api/health" >/dev/null 2>&1; then
+    echo "Starting OmaPeek macOS mock runner on http://127.0.0.1:${PORT} ..."
+    nohup python3 "$PLUGIN_DIR/mock-runner/server.py" --port "$PORT" >/tmp/omapeek-mock.log 2>&1 &
+    sleep 0.6
+  fi
+  echo "Opening OmaPeek preview: $URL"
+  open "$URL" 2>/dev/null || echo "$URL"
+fi

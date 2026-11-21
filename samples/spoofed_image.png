@@ -1,0 +1,3 @@
+#!/bin/sh
+# Disguised as a PNG image to test magic-byte spoofing detection
+echo spoofed
