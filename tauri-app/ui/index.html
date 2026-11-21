@@ -640,7 +640,7 @@
         }
       } else if (kind === "code" || kind === "markdown") {
         contentEl.innerHTML = renderCode(preview.content || "");
-      } else if (kind === "archive") {
+      } else if (kind === "archive" || kind === "directory") {
         const bindSearch = (val = "") => {
           contentEl.innerHTML = renderArchive(preview, val);
           const input = document.getElementById("archiveSearch");

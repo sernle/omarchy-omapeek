@@ -1,49 +1,70 @@
-# OmaPeek — Quick Look + Offline Safety Shield for Omarchy
+# OmaPeek — macOS Quick Look + Offline Safety Shield for Omarchy
 
-Brings macOS-style instant **Quick Look** (`Space` preview) to **Omarchy 4 (Quattro)**—paired with a 100% offline static safety analyzer so you can spot malicious archives, spoofed files, sketchy scripts, and weaponized PDFs *before* you open or extract them.
+![OmaPeek catching a Zip-Slip + double-extension archive on Omarchy Linux](assets/demo.jpg)
 
-## Features
-- **Instant Previews:** Images (PNG/JPEG/GIF/WebP/SVG), Markdown, Code/JSON/YAML, Archives (`.zip`, `.tar.*`), PDFs (with Page-1 thumbnail via `pdftoppm`/`qlmanage`), and Audio/Video metadata + playback (native WAV + optional `ffprobe`).
-- **Offline Safety Shield (`SAFE` / `CAUTION` / `DANGER`):**
-  - **Archives & ZIPs:** Zip-Slip path traversal (`../` or `/`), Zip-Bomb ratio/size checks, hidden executables, double extensions (`invoice.pdf.sh`), symlinks, encrypted entries.
-  - **Scripts & Code:** `curl | bash` pipe-to-shell, Base64/eval obfuscation, reverse shells, destructive `rm -rf /`, credential path targeting (`~/.ssh`, `/etc/shadow`), persistence hooks (`crontab`).
-  - **PDFs:** `/JavaScript` / `/JS`, `/OpenAction`, `/Launch`, `/EmbeddedFile`, `/SubmitForm`.
-  - **Spoofing & Privacy:** Magic-byte vs. extension mismatch (e.g., script disguised as `.png`/`.mp4`), Unicode Right-to-Left Override (`U+202E`), PNG polyglot payloads, EXIF GPS warnings, SHA-256 copy.
-  - **Custom Rule Packs:** Ships with `rules/community.rules` (Discord/Telegram webhook exfil, `/etc/ld.so.preload`, cryptominers, `authorized_keys`, `curl -k`) and automatically loads user rules from `~/.config/omarchy/omapeek.rules` or `OMAPEEK_RULES`.
+Instant **macOS-style Quick Look** for **Omarchy 4 (Quattro)** and **macOS**—paired with a **100% offline, zero-dependency Rust safety analyzer** and **Bubblewrap (`bwrap`) Sandbox Open** so you can inspect downloaded ZIPs, scripts, PDFs, images, and **unsandboxed Omarchy plugins** *before* you open, extract, or install them.
 
-## Build the Native Rust Inspector (Zero Crates / Fast & Low Memory)
+---
+
+## Why OmaPeek?
+
+| Feature | OmaPeek |
+| :--- | :--- |
+| **Native Rust Core** | **~460 KB** stripped binary · **0 external crates** · **1.3 MB** peak RAM · `< 5ms` |
+| **Instant Previews** | Images (PNG/JPEG/GIF/WebP/SVG), Markdown, Code (with line numbers & syntax highlighting), ZIP/TAR Archives (with live filter), PDFs (with Page-1 thumbnail), Audio/Video metadata |
+| **Omarchy Plugin / Folder Audit** | Point `omapeek <dir>` at any downloaded folder or third-party Omarchy plugin to scan every `.qml`/`.sh`/`.py`/`.js` file inside |
+| **Offline Safety Shield** | Detects Zip-Slip (`../`), Zip-Bombs, double extensions (`invoice.pdf.sh`), magic-byte spoofing, Unicode RLO (`U+202E`), `curl \| bash`, reverse shells, `~/.ssh` targeting, PDF `/JavaScript` + `/Launch`, and custom rule packs (`rules/community.rules`) |
+| **Quarantine Mode** | **🛡 Sandbox Open** (isolated `bwrap --unshare-net --tmpfs /home/sandbox`) and **🔒 Quarantine Vault** (`chmod 0400` in `~/.local/share/omapeek/quarantine/`) |
+| **Two Native Frontends** | **Omarchy Quattro Quickshell Overlay** (`Overlay.qml`) + **Cross-Platform Tauri v2 Desktop App** (Linux & macOS) |
+
+---
+
+## Quick Install on Omarchy Linux (Quattro)
+
 ```bash
-cd inspector-rs && cargo build --release && cp target/release/omapeek-inspect ../bin/omapeek-inspect
-```
-- **Zero external crate dependencies** (pure Rust `std`) — compiles offline in ~2s, ~460 KB stripped binary.
-- **Streaming / bounded memory** — reads ZIP Central Directories directly from the tail without decompressing, streams SHA-256 in 64 KB chunks, and bounds PDF/code scans to 1 MB.
-
-## Try it on macOS right now (Mock Runner)
-```bash
-python3 mock-runner/server.py
-```
-Then open `http://127.0.0.1:4173` in your browser, or run:
-```bash
-./bin/omapeek samples/evil_zipslip.zip
-```
-
-## Install on Omarchy Linux (Quattro)
-Using the installer script (downloads prebuilt binary if `OMAPEEK_REPO` is set, builds with Cargo if installed, or falls back to Python 3):
-```bash
+git clone https://github.com/sernle/omarchy-omapeek.git
+cd omarchy-omapeek
 ./install.sh
 ```
-Or package on Arch Linux with `packaging/PKGBUILD`:
+
+Then preview any file—or audit any third-party Omarchy plugin directory:
 ```bash
-cd packaging && makepkg -si
+omapeek samples/evil_zipslip.zip
+omapeek ~/.config/omarchy/plugins/some-plugin
 ```
-Prebuilt binaries for `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu`, and `aarch64-apple-darwin` are automatically built and published on `v*` tags via `.github/workflows/release.yml`.
 
 Optional Hyprland keybind (`~/.config/hypr/bindings.conf`):
 ```ini
 bind = SUPER, Space, exec, ~/.config/omarchy/plugins/sonlc.omapeek/bin/omapeek "$(wl-paste -n)"
 ```
 
+---
+
+## Cross-Platform Tauri v2 Desktop App (Linux & macOS)
+
+```bash
+cd tauri-app/src-tauri && cargo build --release
+./target/release/omapeek-desktop ../../samples/evil_zipslip.zip
+```
+
+---
+
+## Custom Safety Rule Packs
+
+OmaPeek loads [rules/community.rules](rules/community.rules) by default (Discord/Telegram webhook exfiltration, `/etc/ld.so.preload` hijacking, `stratum+tcp://` cryptominers, `authorized_keys`, `curl -k`, etc.) and automatically merges personal rules from `~/.config/omarchy/omapeek.rules` or `OMAPEEK_RULES`.
+
+---
+
+## Benchmark (`evil_zipslip.zip`)
+
+| Metric | Rust (`bin/omapeek-inspect`) | Python fallback |
+| :--- | :---: | :---: |
+| **Wall time** | `< 0.01s` | `0.10s` |
+| **Peak memory** | **1.3 MB** | `14.5 MB` |
+| **External dependencies** | **0 crates** | Python 3 runtime |
+
 ## Run Tests
 ```bash
-python3 -m unittest discover -s tests -v
+cd inspector-rs && cargo test
+cd .. && python3 -m unittest discover -s tests -v
 ```

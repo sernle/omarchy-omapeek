@@ -131,6 +131,17 @@ class TestOmaPeekRustInspector(unittest.TestCase):
             mode = stat.S_IMODE(dest.stat().st_mode)
             self.assertEqual(mode, 0o400, "Quarantined file must be read-only (0400)")
 
+    def test_directory_plugin_audit(self) -> None:
+        # Auditing samples/ should detect suspicious_script.sh & webhook_stealer.py
+        res = inspect_rust(SAMPLES)
+        self.assertEqual(res["kind"], "directory")
+        self.assertEqual(res["safety"]["verdict"], "danger")
+        self.assertGreaterEqual(res["preview"]["entry_count"], 8)
+        # Auditing the OmaPeek plugin root itself should detect Omarchy Plugin Directory
+        root_res = inspect_rust(ROOT)
+        self.assertEqual(root_res["kind"], "directory")
+        self.assertEqual(root_res["meta"]["magic"], "Omarchy Plugin Directory")
+
     def test_overlay_qml_sanity(self) -> None:
         qml = (ROOT / "Overlay.qml").read_text(encoding="utf-8")
         self.assertNotIn("closeRequested", qml, "Dead closeRequested() reference must not exist")

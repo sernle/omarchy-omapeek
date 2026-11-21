@@ -397,9 +397,9 @@ Item {
                     }
                 }
 
-                // Archive / ZIP preview
+                // Archive / ZIP / Directory Audit preview
                 ListView {
-                    visible: root.inspectData && root.inspectData.kind === "archive"
+                    visible: root.inspectData && (root.inspectData.kind === "archive" || root.inspectData.kind === "directory")
                     anchors.fill: parent
                     anchors.margins: 16
                     clip: true

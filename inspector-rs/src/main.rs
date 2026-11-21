@@ -1312,11 +1312,158 @@ fn inspect_media(path: &Path, header: &[u8], magic: Option<&str>, media_kind: &s
 // Core Entrypoint
 // ============================================================================
 
+fn walk_directory_audit(
+    root: &Path,
+    dir: &Path,
+    custom_rules: &[CustomRule],
+    entries: &mut Vec<ArchiveEntry>,
+    findings: &mut Vec<Finding>,
+    total_bytes: &mut u64,
+    total_count: &mut usize,
+) {
+    let Ok(read_dir) = fs::read_dir(dir) else {
+        return;
+    };
+    let mut children: Vec<std::path::PathBuf> = read_dir.flatten().map(|e| e.path()).collect();
+    children.sort();
+
+    for child in children {
+        let Some(fname) = child.file_name().and_then(|s| s.to_str()) else {
+            continue;
+        };
+        if matches!(fname, ".git" | "target" | "node_modules" | "__pycache__") {
+            continue;
+        }
+        let Ok(md) = fs::symlink_metadata(&child) else {
+            continue;
+        };
+        let rel = child
+            .strip_prefix(root)
+            .unwrap_or(&child)
+            .to_string_lossy()
+            .to_string();
+
+        if md.is_dir() {
+            if *total_count < MAX_ARCHIVE_ENTRIES {
+                walk_directory_audit(root, &child, custom_rules, entries, findings, total_bytes, total_count);
+            }
+            continue;
+        }
+
+        *total_count += 1;
+        *total_bytes = total_bytes.saturating_add(md.len());
+
+        let mut flags: Vec<&'static str> = Vec::new();
+        let ext = child
+            .extension()
+            .map(|e| format!(".{}", e.to_string_lossy().to_ascii_lowercase()))
+            .unwrap_or_default();
+
+        if md.file_type().is_symlink() {
+            flags.push("symlink");
+        }
+        if is_double_ext(fname).is_some() {
+            flags.push("double-ext");
+            findings.push(Finding::new(
+                "high",
+                "DIR_DOUBLE_EXT",
+                format!("Suspicious double extension: {}", rel),
+                "File inside directory uses a disguised double extension.",
+            ));
+        }
+        if EXECUTABLE_EXTS.contains(&ext.as_str()) {
+            flags.push("executable");
+        }
+
+        // Scan code/script/QML files inside the directory
+        if CODE_EXTS.contains(&ext.as_str()) || MARKDOWN_EXTS.contains(&ext.as_str()) {
+            let before = findings.len();
+            let _ = inspect_code(&child, &ext, custom_rules, findings);
+            if findings.len() > before {
+                flags.push("flagged");
+                for f in &mut findings[before..] {
+                    f.title = format!("{}: {}", rel, f.title);
+                }
+            }
+        }
+
+        if entries.len() < MAX_ARCHIVE_ENTRIES {
+            entries.push(ArchiveEntry {
+                name: rel,
+                is_dir: false,
+                size: md.len(),
+                compressed_size: None,
+                flags,
+            });
+        }
+    }
+}
+
+fn inspect_directory(path: &Path) -> io::Result<String> {
+    let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("directory").to_string();
+    let is_omarchy_plugin = path.join("manifest.json").exists();
+    let custom_rules = load_custom_rules();
+
+    let mut entries: Vec<ArchiveEntry> = Vec::new();
+    let mut findings: Vec<Finding> = Vec::new();
+    let mut total_bytes: u64 = 0;
+    let mut total_count: usize = 0;
+
+    walk_directory_audit(path, path, &custom_rules, &mut entries, &mut findings, &mut total_bytes, &mut total_count);
+
+    let score: u32 = findings
+        .iter()
+        .map(|f| match f.severity.as_str() {
+            "high" => 45,
+            "medium" => 20,
+            "low" => 8,
+            _ => 0,
+        })
+        .sum::<u32>()
+        .min(100);
+    let high_count = findings.iter().filter(|f| f.severity == "high").count();
+    let med_count = findings.iter().filter(|f| f.severity == "medium").count();
+
+    let scope_label = if is_omarchy_plugin { "Omarchy plugin audit" } else { "Directory audit" };
+    let (verdict, summary) = if high_count > 0 || score >= 45 {
+        ("danger", format!("{}: {} high-risk indicator(s) found across {} files.", scope_label, high_count, total_count))
+    } else if med_count > 0 || score >= 15 {
+        ("caution", format!("{}: {} caution indicator(s) found across {} files.", scope_label, med_count, total_count))
+    } else {
+        ("safe", format!("{}: no static red flags across {} files.", scope_label, total_count))
+    };
+
+    let preview_json = format_archive_json(
+        if is_omarchy_plugin { "omarchy-plugin" } else { "directory" },
+        total_count,
+        total_bytes,
+        1.0,
+        &entries,
+    );
+    let findings_json: Vec<String> = findings.iter().map(|f| f.to_json()).collect();
+    let magic_label = if is_omarchy_plugin { "Omarchy Plugin Directory" } else { "Directory" };
+
+    Ok(format!(
+        "{{\"meta\":{{\"name\":{},\"path\":{},\"extension\":\"\",\"size\":{},\"size_human\":{},\"mime\":\"inode/directory\",\"magic\":{},\"executable\":false,\"modified\":\"0\",\"sha256\":\"directory-audit\"}},\"kind\":\"directory\",\"preview\":{},\"safety\":{{\"verdict\":{},\"score\":{},\"summary\":{},\"rules_loaded\":{},\"findings\":[{}]}}}}",
+        json_escape(&name),
+        json_escape(&path.to_string_lossy()),
+        total_bytes,
+        json_escape(&human_size(total_bytes)),
+        json_escape(magic_label),
+        preview_json,
+        json_escape(verdict),
+        score,
+        json_escape(&summary),
+        custom_rules.len(),
+        findings_json.join(","),
+    ))
+}
+
 fn inspect_file(target: &str) -> io::Result<String> {
     let path = fs::canonicalize(target)?;
     let meta = fs::metadata(&path)?;
     if meta.is_dir() {
-        return Err(io::Error::new(io::ErrorKind::InvalidInput, format!("Path is a directory: {}", target)));
+        return inspect_directory(&path);
     }
 
     let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("").to_string();
