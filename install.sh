@@ -9,7 +9,7 @@ ARCH="$(uname -m)"
 OS="$(uname -s)"
 
 echo "==> Installing OmaPeek ($PLUGIN_ID) to $INSTALL_DIR"
-mkdir -p "$INSTALL_DIR/bin" "$INSTALL_DIR/rules"
+mkdir -p "$INSTALL_DIR/bin" "$INSTALL_DIR/rules" "$INSTALL_DIR/mock-runner" "$INSTALL_DIR/samples"
 
 cp "$SCRIPT_DIR/manifest.json" "$INSTALL_DIR/"
 cp "$SCRIPT_DIR/Overlay.qml" "$INSTALL_DIR/"
@@ -17,7 +17,9 @@ cp "$SCRIPT_DIR/BarWidget.qml" "$INSTALL_DIR/"
 cp "$SCRIPT_DIR/bin/omapeek" "$INSTALL_DIR/bin/"
 cp "$SCRIPT_DIR/bin/omapeek-inspect.py" "$INSTALL_DIR/bin/"
 cp -r "$SCRIPT_DIR/rules/." "$INSTALL_DIR/rules/"
-chmod +x "$INSTALL_DIR/bin/omapeek" "$INSTALL_DIR/bin/omapeek-inspect.py"
+cp -r "$SCRIPT_DIR/mock-runner/." "$INSTALL_DIR/mock-runner/"
+cp -r "$SCRIPT_DIR/samples/." "$INSTALL_DIR/samples/"
+chmod +x "$INSTALL_DIR/bin/omapeek" "$INSTALL_DIR/bin/omapeek-inspect.py" "$INSTALL_DIR/mock-runner/server.py"
 
 # 1. Try prebuilt binary in repo if matching host OS/arch
 if [[ -x "$SCRIPT_DIR/bin/omapeek-inspect" ]] && file "$SCRIPT_DIR/bin/omapeek-inspect" | grep -qi "$OS"; then
