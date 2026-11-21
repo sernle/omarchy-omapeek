@@ -297,7 +297,7 @@ Item {
 
                 // Error state
                 Text {
-                    visible: root.errorText.length > 0
+                    visible: root.errorText.length > 0 && root.inspectData === null
                     anchors.centerIn: parent
                     text: root.errorText
                     color: root.dangerColor
