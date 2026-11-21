@@ -3,14 +3,11 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
+import Quickshell.Wayland
+import qs.Ui
 
 Item {
     id: root
-    implicitWidth: 980
-    implicitHeight: 720
-    visible: root.opened
-    focus: root.opened
-
     property var shell: null
     property var manifest: null
     property bool opened: false
@@ -143,26 +140,31 @@ Item {
         }
     }
 
-    // Dimmed backdrop
-    Rectangle {
-        anchors.fill: parent
-        color: root.bgScrim
+    OverlayWindow {
+        id: panel
+        shown: root.opened
+        WlrLayershell.namespace: "omarchy-omapeek"
 
-        MouseArea {
+        // Dimmed backdrop
+        Rectangle {
             anchors.fill: parent
-            onClicked: root.close()
-        }
-    }
+            color: root.bgScrim
 
-    Keys.onPressed: (event) => {
-        if (event.key === Qt.Key_Escape || event.key === Qt.Key_Space) {
-            root.close()
-            event.accepted = true
-        } else if (event.key === Qt.Key_S) {
-            root.showSafetyDetails = !root.showSafetyDetails
-            event.accepted = true
+            MouseArea {
+                anchors.fill: parent
+                onClicked: root.close()
+            }
         }
-    }
+
+        Keys.onPressed: (event) => {
+            if (event.key === Qt.Key_Escape || event.key === Qt.Key_Space) {
+                root.close()
+                event.accepted = true
+            } else if (event.key === Qt.Key_S) {
+                root.showSafetyDetails = !root.showSafetyDetails
+                event.accepted = true
+            }
+        }
 
     // Centered Quick Look Modal
     Rectangle {
@@ -488,6 +490,7 @@ Item {
                     }
                 }
             }
+        }
         }
     }
 }
